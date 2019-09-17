@@ -3,6 +3,8 @@ import torch
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from flask_restful import Resource, Api, reqparse
+from pymongo import MongoClient
+
 from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
                                   BertForSequenceClassification, BertTokenizer,
                                   RobertaConfig,
@@ -41,6 +43,10 @@ config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 tokenizer = tokenizer_class.from_pretrained(classifier)
 model = model_class.from_pretrained(classifier)
 model.eval()
+
+client = MongoClient()
+db = client['pseudo-results']
+collection = db['results']
 
 def tokenize(sentence):
     sentence = sentence.replace('\n', '')
@@ -91,9 +97,22 @@ class Prediction(Resource):
         text = args['sentence']
         #print(text)
         
-        is_pseudo, probs = get_prediction(tokenize(text))
+        preds, probs = get_prediction(tokenize(text))
 
-        return {"pseudoscience": is_pseudo, "probability": probs}
+        if preds:
+            is_pseudo = "Pseudoscience detected"
+        else:
+            is_pseudo =  "Pseudoscience not detected"
+
+        collection.insert_one(
+            {
+                "text": text,
+                "probs": float(probs),
+                "prediction": float(preds)
+            }
+        )
+
+        return {"pseudoscience": is_pseudo, "probability": str(probs)}
 
 
 def get_prediction(inputs):
@@ -103,10 +122,9 @@ def get_prediction(inputs):
     probs = softmax(preds, axis=1)[0, 1].item()
     preds = np.argmax(preds, axis=1)
 
-    if preds == 1:
-        return "Pseudoscience detected", str(probs)
-    else:
-        return "Pseudoscience not detected", str(probs)
+    return preds, probs
+
+
 
 api.add_resource(Prediction, '/api/predict')
 
