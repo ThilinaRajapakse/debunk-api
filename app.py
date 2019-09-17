@@ -90,12 +90,12 @@ class Prediction(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument("sentence", type=str, required=True)
+        self.reqparse.add_argument("choice", type=str, required=True)
         super(Prediction, self).__init__()
 
     def post(self):
         args = self.reqparse.parse_args()
         text = args['sentence']
-        #print(text)
         
         preds, probs = get_prediction(tokenize(text))
 
@@ -104,7 +104,7 @@ class Prediction(Resource):
         else:
             is_pseudo =  "Pseudoscience not detected"
 
-        user_prediction = args['user_prediction']
+        user_prediction = args['choice']
         if user_prediction == "true":
             user_prediction = True
         elif user_prediction == "false":
@@ -112,12 +112,12 @@ class Prediction(Resource):
         else:
             user_prediction = None
 
-        if user_prediction:
+        if user_prediction is not None:
             collection.insert_one(
                 {
                     "text": text,
                     "probs": float(probs),
-                    "prediction": float(preds),
+                    "prediction": int(preds),
                     "user_prediction": int(user_prediction)
                 }
             )
