@@ -104,13 +104,23 @@ class Prediction(Resource):
         else:
             is_pseudo =  "Pseudoscience not detected"
 
-        collection.insert_one(
-            {
-                "text": text,
-                "probs": float(probs),
-                "prediction": float(preds)
-            }
-        )
+        user_prediction = args['user_prediction']
+        if user_prediction == "true":
+            user_prediction = True
+        elif user_prediction == "false":
+            user_prediction = False
+        else:
+            user_prediction = None
+
+        if user_prediction:
+            collection.insert_one(
+                {
+                    "text": text,
+                    "probs": float(probs),
+                    "prediction": float(preds),
+                    "user_prediction": int(user_prediction)
+                }
+            )
 
         return {"pseudoscience": is_pseudo, "probability": str(probs)}
 
